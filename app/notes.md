@@ -1,0 +1,5 @@
+I took the original “everything in one file” FastAPI script and split it into smaller parts so it’s easier to read and maintain. The API endpoints are in `app/api/`, the main logic for “add docs then answer questions” is in `RagWorkflow`, embeddings are handled in `EmbeddingService`, and the storage layer is separated into two options: an in-memory store (`InMemoryDocumentStore`) and a Qdrant store (`QdrantDocumentStore`) behind the same `DocumentStore` interface.
+
+I also set up the dependencies (store, embedder, workflow) in one place (`AppContainer`) when the app starts, then the routes reuse those objects. The downside is the project has more files than before, so it can feel a bit more “organized” than a simple script. The benefit is you can change or debug one part without touching the others, and it’s easier to test (for example, you can test the workflow using the in-memory store without needing Qdrant).
+
+Overall, this refactor keeps the same external API behavior, but makes the code easier to understand, easier to extend, and less likely to break when new changes are added.
