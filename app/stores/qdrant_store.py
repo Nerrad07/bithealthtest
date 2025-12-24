@@ -9,15 +9,17 @@ class QdrantDocumentStore(DocumentStore):
         self._client = QdrantClient(url)
         self._id_counter = 0
 
-        self._client.recreate_collection(
-            collection_name=self.collection_name,
-            vectors_config=VectorParams(size=self.vector_size, distance=Distance.COSINE),
-        )
+        collections = self._client.get_collections().collections
+        exists = any(c.name == self.collection_name for c in collections)
+        if not exists:
+            self._client.create_collection(
+                collection_name=self.collection_name,
+                vectors_config=VectorParams(size=self.vector_size, distance=Distance.COSINE),
+            )
 
     def add(self, text: str, vector: list[float]) -> int:
         doc_id = self._id_counter
         self._id_counter += 1
-
         self._client.upsert(
             collection_name=self.collection_name,
             points=[PointStruct(id=doc_id, vector=vector, payload={"text": text})],
@@ -30,7 +32,7 @@ class QdrantDocumentStore(DocumentStore):
             query_vector=query_vector,
             limit=limit,
         )
-        return [hit.payload["text"] for hit in hits if hit.payload]
+        return [hit.payload["text"] for hit in hits if hit.payload and "text" in hit.payload]
 
     def count(self) -> int:
         return self._id_counter

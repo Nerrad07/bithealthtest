@@ -1,24 +1,19 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
-from .api import make_routes
-from .services.embedding import EmbeddingService
-from .stores.memory_store import InMemoryDocumentStore
-from .rag_workflow import RagWorkflow
+from .container import AppContainer
+from .api.routes import router
 
-app = FastAPI(title="Learning RAG Demo")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    container = AppContainer.from_env()
+    app.state.container = container
+    yield
+    if hasattr(container.store, "close"):
+        container.store.close()
 
-def build_store():
-    try:
-        from .stores.qdrant_store import QdrantDocumentStore
-        return QdrantDocumentStore(
-            url="http://localhost:6333",
-            collection_name="demo_collection",
-            vector_size=128,
-        )
-    except Exception:
-        return InMemoryDocumentStore()
+def create_app() -> FastAPI:
+    app = FastAPI(lifespan=lifespan)
+    app.include_router(router)
+    return app
 
-embedder = EmbeddingService()
-store = build_store()
-workflow = RagWorkflow(store=store, embedder=embedder)
-
-app.include_router(make_routes(workflow))
+app = create_app()
